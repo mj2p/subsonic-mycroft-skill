@@ -13,7 +13,7 @@ class Subsonic(MycroftSkill):
 
     @intent_handler(IntentBuilder("PlayArtistIntent").require("Play").require("Music"))
     def handle_play_artist_intent(self, message):
-	artist = message.data.get("Artist")
+	#artist = message.data.get("Artist")
         self.speak_dialog('artist')
 
 
