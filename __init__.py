@@ -11,8 +11,8 @@ class Subsonic(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self)
 
-    @intent_handler(IntentBuilder("").require("Play").require("Music").require("Artist"))
-    def handle_artist_play(self, message):
+    @intent_handler(IntentBuilder("PlayArtistIntent").require("Play").require("Music"))
+    def handle_play_artist_intent(self, message):
 	artist = message.data.get("Artist")
         self.speak_dialog('artist')
 
