@@ -1,13 +1,18 @@
 from adapt.intent import IntentBuilder
 from mycroft import MycroftSkill, intent_file_handler
+from mycroft.util.log import getLogger
 
+__author__ = 'MJ2P'
+
+
+LOGGER = getLogger(__name__)
 
 class Subsonic(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self)
 
-    @intent_file_handler('subsonic.intent')
-    def handle_subsonic(self, message):
+    @intent_handler(IntentBuilder("").require("Play").require("Music").optionally("Artist"))
+    def handle_artist_play(self, message):
         self.speak_dialog('subsonic')
 
 
