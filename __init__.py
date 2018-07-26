@@ -239,7 +239,7 @@ class Subsonic(MycroftSkill):
             # user gave tan Album keyword so we can skip all other search results
             available_targets = search_results.get('album', [])
         else:
-            available_targets = search_results.get('song', []) + search_results.get('album')
+            available_targets = search_results.get('song', []) + search_results.get('album', [])
 
         # make sure the targets returned from the search have the correct artist
         matching_targets = []
