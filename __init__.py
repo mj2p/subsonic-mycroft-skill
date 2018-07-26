@@ -264,17 +264,25 @@ class Subsonic(MycroftSkill):
         for matching_target in matching_targets:
             if 'name' in matching_target:
                 # name only exists in an album
-                final_targets[matching_target['name']] = {'id': matching_target['id'], 'type': 'album'}
+                final_targets[matching_target['name']] = {
+                    'id': matching_target['id'],
+                    'type': 'album',
+                    'artist': matching_target['artist']
+                }
             else:
                 # we only chose albums and songs from the search results so can safely assume we have a song
                 # songs are identified by 'title'
-                final_targets[matching_target['title']] = {'id': matching_target['id'], 'type': 'song'}
+                final_targets[matching_target['title']] = {
+                    'id': matching_target['id'],
+                    'type': 'song',
+                    'artist': matching_target['artist']
+                }
 
         chosen_target = dict(match_one(target, final_targets)[0])
         chose_target_name = next(t for t in final_targets if final_targets[t]['id'] == chosen_target['id'])
 
         self.speak_dialog(
-            'target', {'target': chose_target_name, 'artist': artist}
+            'target', {'target': chose_target_name, 'artist': chosen_target['artist']}
         )
 
         if chosen_target['type'] == 'song':
