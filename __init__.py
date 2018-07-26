@@ -185,15 +185,25 @@ class Subsonic(MycroftSkill):
             self.speak_dialog('no.artists', {'artist': artist})
             return
 
-        self.speak_dialog('artist', {'artist': artist})
+        # we want to match the best search result
+        # make a dict holding the details we need
+        matching_artists = dict()
+
+        for available_artist in available_artists:
+            matching_artists[available_artist['name']] = available_artist['id']
+
+        matched_artist_id = match_one(artist, matching_artists)[0]
+
+        self.speak_dialog(
+            'artist',
+            {'artist': next(a for a in matching_artists if matching_artists[a] == matched_artist_id)}
+        )
 
         songs = []
+        artist_info = self.make_request('{}&id={}'.format(self.create_url('getArtist'), matched_artist_id))
 
-        for artist in available_artists:
-            artist_info = self.make_request('{}&id={}'.format(self.create_url('getArtist'), artist.get('id')))
-
-            for album in artist_info['subsonic-response']['artist']['album']:
-                songs += self.get_album_tracks(album.get('id'))
+        for album in artist_info['subsonic-response']['artist']['album']:
+            songs += self.get_album_tracks(album.get('id'))
 
         shuffle(songs)
 
@@ -282,7 +292,8 @@ class Subsonic(MycroftSkill):
         chose_target_name = next(t for t in final_targets if final_targets[t]['id'] == chosen_target['id'])
 
         self.speak_dialog(
-            'target', {'target': chose_target_name, 'artist': chosen_target['artist']}
+            'target',
+            {'target': chose_target_name, 'artist': chosen_target['artist']}
         )
 
         if chosen_target['type'] == 'song':
