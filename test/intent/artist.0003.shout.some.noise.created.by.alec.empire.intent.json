@@ -1,0 +1,15 @@
+{
+  "utterance": "shout some noise created by alec empire",
+  "intent_type": "PlayArtistIntent",
+  "set_context": {
+    "_TestRunner": true,
+    "test_server_url": "http://demo.subsonic.org",
+    "username": "guest1",
+    "password": "guest"
+  },
+  "intent": {
+    "Artist": "alec empire"
+  },
+  "expected_response": "You have reached the Artist Intent",
+  "evaluation_timeout": 10
+}

@@ -1,0 +1,1 @@
+There was a problem sending requests to Subsonic. The error code is {{ code }}. The error message is {{ message }}.

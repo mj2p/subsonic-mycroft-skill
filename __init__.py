@@ -55,8 +55,7 @@ class Subsonic(MycroftSkill):
         )
         return url
 
-    @staticmethod
-    def make_request(url):
+    def make_request(self, url):
         """
         GET the supplied url and resturn the response as json.
         Handle any errors present.
@@ -83,11 +82,12 @@ class Subsonic(MycroftSkill):
 
         if status == 'failed':
             error = subsonic_response.get('error', {})
-            print(
-                'Command Failed! {}: {}'.format(
-                    error.get('code', ''),
-                    error.get('message', '')
-                )
+            self.speak_dialog(
+                'subsonic.error',
+                {
+                    'code': error.get('code'),
+                    'message': error.get('message')
+                }
             )
             return None
 
@@ -154,7 +154,7 @@ class Subsonic(MycroftSkill):
         random_songs = self.make_request(url)
 
         if not random_songs:
-            return
+            return []
 
         return random_songs['subsonic-response']['randomSongs']['song']
 
@@ -212,7 +212,9 @@ class Subsonic(MycroftSkill):
             'ArtistKeyWord'
         ).require(
             'Artist'
-        )
+        ).optionally(
+            '_TestRunner'
+        ).build()
     )
     def handle_play_artist_intent(self, message):
         """
@@ -222,6 +224,10 @@ class Subsonic(MycroftSkill):
             Play some tracks by Tune-yards
             Play some noise by Atari Teenage Riot
         """
+        if message.data.get('_TestRunner'):
+            self.speak('You have reached the Artist Intent')
+            return
+
         artist = message.data.get('Artist')
         available_artists = self.search(artist).get('artist', [])
 
@@ -264,7 +270,7 @@ class Subsonic(MycroftSkill):
             'ArtistKeyword'
         ).require(
             'Artist'
-        )
+        ).build()
     )
     def handle_play_music_intent(self, message):
         """
@@ -350,7 +356,7 @@ class Subsonic(MycroftSkill):
             'Random'
         ).optionally(
             'Music'
-        )
+        ).build()
     )
     def handle_random_intent(self, message):
         """
@@ -384,7 +390,7 @@ class Subsonic(MycroftSkill):
             'Radio'
         ).require(
             'Artist'
-        )
+        ).build()
     )
     def handle_radio_intent(self, message):
         has_played = message.data.get('has_played')
@@ -434,7 +440,7 @@ class Subsonic(MycroftSkill):
             'Playlist'
         ).require(
             'PlaylistKeyWord'
-        )
+        ).build()
     )
     def handle_playlist_intent(self, message):
         playlist = message.data.get('Playlist')
