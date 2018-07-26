@@ -1,0 +1,5 @@
+I was unable to find any artists matching {{ artist }}.
+sorry, I couldn't find any tunes by {{ artist }}.
+it doesn't look like there is any music by {{ artist }}.
+sorry, {{ artist }} has left the building!
+nope!

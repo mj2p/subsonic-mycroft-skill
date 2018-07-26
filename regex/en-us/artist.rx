@@ -1,1 +1,1 @@
-(by|from) (?P<Artist>.*)
+(?P<Artist>.*)
