@@ -6,6 +6,7 @@ import requests
 from adapt.intent import IntentBuilder
 from mycroft import MycroftSkill, intent_handler
 from mycroft.util.log import getLogger
+from mycroft.util.parse import fuzzy_match, match_one
 from mycroft.skills.audioservice import AudioService
 
 __author__ = 'MJ2P'
@@ -170,6 +171,13 @@ class Subsonic(MycroftSkill):
         )
     )
     def handle_play_artist_intent(self, message):
+        """
+        Handle playing tracks by a chosen artist
+        Phrases like:
+            Play some Aphex Twin
+            Play some tracks by Tune-yards
+            Play some noise by Atari Teenage Riot
+        """
         artist = message.data.get('Artist')
         available_artists = self.search(artist).get('artist', [])
 
@@ -199,42 +207,81 @@ class Subsonic(MycroftSkill):
 
     @intent_handler(
         IntentBuilder(
-            'PlayAlbumIntent'
+            'PlayMusicIntent'
         ).require(
             'Play'
         ).optionally(
             'AlbumKeyWord'
         ).require(
-            'Album'
+            'MusicTarget'
         ).require(
             'ArtistKeyword'
         ).require(
             'Artist'
         )
     )
-    def handle_play_album_intent(self, message):
-        album = message.data.get('Album')
+    def handle_play_music_intent(self, message):
+        """
+        Handle playing of an Album or a Single Track, with an Artist specified
+        Phrases like:
+            Play the album Syro by Aphex Twin
+            Play Tundra by Squarepusher (single track)
+        """
+        # album keyword lets us determine that the user has definitely asked for an album
+        album_keyword = message.data.get('AlbumKeyword')
+        # target can be a single track or an album
+        target = message.data.get('MusicTarget')
         artist = message.data.get('Artist')
-        available_albums = self.search(album).get('album', [])
 
-        matching_albums = []
+        search_results = self.search(target)
 
-        for found_album in available_albums:
-            if found_album.get('artist').lower().strip() == artist.lower().strip():
-                matching_albums.append(found_album)
+        if album_keyword:
+            # user gave tan Album keyword so we can skip all other search results
+            available_targets = search_results.get('album', [])
+        else:
+            available_targets = search_results.get('song', []) + search_results.get('album')
 
-        if not matching_albums:
-            self.speak_dialog('no.albums', {'album': album, 'artist': artist})
+        # make sure the targets returned from the search have the correct artist
+        matching_targets = []
+
+        for found_target in available_targets:
+            if 'artist' not in found_target:
+                # videos may show up in search results but will have no artist
+                continue
+            # use fuzzy matching on the artist name and only accept those that match the
+            if fuzzy_match(found_target.get('artist').lower().strip(), artist.lower().strip()) > 0.8:
+                matching_targets.append(found_target)
+
+        # if no targets have a nearly matching artist we report the failure to the user
+        if not matching_targets:
+            self.speak_dialog('no.targets', {'target': target, 'artist': artist})
             return
 
-        self.speak_dialog('album', {'album': album, 'artist': artist})
+        # otherwise we 'match_one' target based on the target name.
+        # build a dict matching target name to target id (needed for playing0
+        final_targets = dict()
 
-        songs = []
+        for matching_target in matching_targets:
+            if 'name' in matching_target:
+                # name only exists in an album
+                final_targets[matching_target['name']] = {'id': matching_target['id'], 'type': 'album'}
+            else:
+                # we only chose albums and songs from the search results so can safely assume we have a song
+                # songs are identified by 'title'
+                final_targets[matching_target['title']] = {'id': matching_target['id'], 'type': 'song'}
 
-        for album in matching_albums:
-            songs += self.get_album_tracks(album.get('id'))
+        chosen_target = dict(match_one(target, final_targets)[0])
+        chose_target_name = next(t for t in final_targets if final_targets[t]['id'] == chosen_target['id'])
 
-        shuffle(songs)
+        self.speak_dialog(
+            'target', {'target': chose_target_name, 'artist': artist}
+        )
+
+        if chosen_target['type'] == 'song':
+            songs = [chosen_target]
+        else:
+            songs = self.get_album_tracks(chosen_target['id'])
+            shuffle(songs)
 
         self.audio_service.play(
             [
@@ -243,56 +290,6 @@ class Subsonic(MycroftSkill):
             ],
             'vlc'
         )
-
-    @intent_handler(
-        IntentBuilder(
-            'SearchIntent'
-        ).require(
-            'Search'
-        ).require(
-            'SearchTerm'
-        )
-    )
-    def handle_search_intent(self, message):
-        search_term = message.data.get('SearchTerm')
-        self.results = self.search('"{}"'.format(search_term))
-        self.speak(self.results)
-        results_count = (
-            len(self.results.get('song', [])) +
-            len(self.results.get('artist', [])) +
-            len(self.results.get('album', []))
-        )
-        self.speak('I found {} results. Would you like to hear them?'.format(results_count), True)
-
-    @intent_handler(
-        IntentBuilder(
-            'YesIntent'
-        ).require(
-            'Yes'
-        )
-    )
-    def handle_yes_intent(self, message):
-        if self.results:
-            songs = self.results.get('song', [])
-
-            if songs:
-                self.speak('Songs')
-                for song in songs:
-                    self.speak('{} by {} from the album {}'.format(song['title'], song['artist'], song['album']))
-
-            albums = self.results.get('album', [])
-
-            if albums:
-                self.speak('Albums')
-                for album in albums:
-                    self.speak('{} by {}'.format(album['name'], album['artist']))
-
-            artists = self.results.get('artist', [])
-
-            if artists:
-                self.speak('Artists')
-                for artist in artists:
-                    self.speak('{}'.format(artist['name']))
 
 
 def create_skill():

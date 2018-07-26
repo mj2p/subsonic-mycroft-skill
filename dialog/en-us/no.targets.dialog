@@ -1,4 +1,4 @@
-I was unable to find any albums matching {{ album }}.
+I was unable to find any albums matching {{ target }}.
 sorry, I couldn't find any tunes by {{ artist }}.
 it doesn't look like there is any music by {{ artist }}.
 sorry, {{ artist }} has left the building!

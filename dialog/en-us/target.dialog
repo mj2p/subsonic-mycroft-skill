@@ -1,0 +1,5 @@
+ok, playing {{ target }}
+ok, playing {{ target }} by {{ artist }}
+sure, playing {{ target }}
+now playing {{ target }} by {{ artist }}
+here, {{ target }} by {{ artist }}
