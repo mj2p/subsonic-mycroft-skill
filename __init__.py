@@ -110,7 +110,7 @@ class Subsonic(MycroftSkill):
         )
         if results:
             return results['subsonic-response']['searchResult3']
-        return []
+        return {}
 
     def get_artists(self):
         """
@@ -160,7 +160,6 @@ class Subsonic(MycroftSkill):
     def handle_play_artist_intent(self, message):
         artist = message.data.get('Artist')
         available_artists = self.search(artist).get('artist', [])
-        print(available_artists)
         if not available_artists:
             self.speak('I was unable to find any artists matching {}'.format(artist))
             return
