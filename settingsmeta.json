@@ -26,12 +26,6 @@
                         "type": "password",
                         "label": "Password",
                         "value": ""
-                    },
-                    {
-                        "name": "ssl",
-                        "type": "number",
-                        "label": "Use HTTPS (1) or normal HTTP (0)",
-                        "value": "1"
                     }
                 ]
             }
