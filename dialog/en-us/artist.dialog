@@ -1,8 +1,8 @@
-#here are some tunes by {{ artist }}
-#playing tracks by {{ artist }}
-#playing some {{ artist }}
-#here is some {{artist }}
-#ok, you're now listening to {{ artist }}
-#ok, here are some tracks by {{ artist }}
-#no problem, here is a reandom selection of tunes from {{ artist }}
+here are some tunes by {{ artist }}
+playing tracks by {{ artist }}
+playing some {{ artist }}
+here is some {{artist }}
+ok, you're now listening to {{ artist }}
+ok, here are some tracks by {{ artist }}
+no problem, here is a random selection of tunes from {{ artist }}
 ok, here are some tracks

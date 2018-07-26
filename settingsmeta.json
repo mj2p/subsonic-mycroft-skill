@@ -3,23 +3,17 @@
     "skillMetadata": {
         "sections": [
             {
-                "name": "Options << Name of section",
-                "fields": [
-                    {
-                        "name": "internal_python_variable_name",
-                        "type": "text",
-                        "label": "Setting Friendly Display Name",
-                        "value": "",
-                        "placeholder": "demo prompt in the input box"
-                    }
-                ]
-            },
-            {
-                "name": "Login << Name of another section",
+                "name": "Subsonic Server Details",
                 "fields": [
                     {
                         "type": "label",
-                        "label": "Just a little bit of extra info for the user to understand following settings"
+                        "label": "Configure your Subsonic server here. The server must be reachable from your Mycroft instance"
+                    },
+                    {
+                        "name": "server_url",
+                        "type": "text",
+                        "label": "Server URL",
+                        "value": ""
                     },
                     {
                         "name": "username",
@@ -32,6 +26,12 @@
                         "type": "password",
                         "label": "Password",
                         "value": ""
+                    },
+                    {
+                        "name": "ssl",
+                        "type": "number",
+                        "label": "Use HTTPS (1) or normal HTTP (0)",
+                        "value": "1"
                     }
                 ]
             }
