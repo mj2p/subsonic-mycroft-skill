@@ -1,5 +1,6 @@
 import hashlib
 import string
+import time
 from random import SystemRandom, shuffle
 
 import requests
@@ -20,9 +21,14 @@ class Subsonic(MycroftSkill):
         MycroftSkill.__init__(self)
         self.results = None
         self.audio_service = None
+        self.song_ids = dict()
+        self.play_list_count = 0
 
     def initialize(self):
         self.audio_service = AudioService(self.emitter)
+        self.add_event('mycroft.audio.playing_track', self.handle_playing_track)
+        self.add_event('mycroft.audio.service.next', self.handle_next_track)
+        self.add_event('mycroft.audio.service.prev', self.handle_prev_track)
 
     def hash_password(self):
         """
@@ -40,7 +46,7 @@ class Subsonic(MycroftSkill):
         :param endpoint: REST endpoint to incorporate in the url
         """
         token, salt = self.hash_password()
-        url = '{}/rest/{}?u={}&t={}&s={}&v=1.16.0&c=pSub&f=json'.format(
+        url = '{}/rest/{}?u={}&t={}&s={}&v=1.16.0&c=mycroft&f=json'.format(
             self.settings.get('server_url'),
             endpoint,
             self.settings.get('username'),
@@ -87,24 +93,42 @@ class Subsonic(MycroftSkill):
 
         return response
 
-    def scrobble(self, song_id):
+    def handle_playing_track(self, message):
         """
-        notify the Subsonic server that a track is being played within pSub
-        :param song_id:
-        :return:
+        notify the Subsonic server that a track is being played
+        triggered by the mycroft.audio.playing_track event
         """
-        self.make_request(
-            url='{}&id={}'.format(
-                self.create_url('scrobble'),
-                song_id
+        # get the track name from the message
+        track_name = message.data.get('track')
+        # get the corresponding ID from our map
+        song_id = self.song_ids.get(track_name)
+
+        if song_id:
+            # scrobble the track
+            self.make_request(
+                url='{}&id={}'.format(
+                    self.create_url('scrobble'),
+                    song_id
+                )
             )
-        )
+
+    def handle_next_track(self, message):
+        """
+        reduce the playlist count by 1
+        triggered by the mycroft.audio.service.next event
+        """
+        self.play_list_count -= 1
+
+    def handle_prev_track(self, message):
+        """
+        increase the playlist count by 1
+        triggered by the mycroft.audio.service.prev event
+        """
+        self.play_list_count += 1
 
     def search(self, query):
         """
         search using query and return the result
-        :return:
-        :param query: search term string
         """
         results = self.make_request(
             url='{}&query={}'.format(self.create_url('search3'), query)
@@ -113,41 +137,30 @@ class Subsonic(MycroftSkill):
             return results['subsonic-response']['searchResult3']
         return {}
 
-    def get_artists(self):
-        """
-        Gather list of Artists from the Subsonic server
-        :return: list
-        """
-        artists = self.make_request(url=self.create_url('getArtists'))
-        if artists:
-            return artists['subsonic-response']['artists']['index']
-        return []
-
     def get_playlists(self):
         """
         Get a list of available playlists from the server
-        :return:
         """
         playlists = self.make_request(url=self.create_url('getPlaylists'))
         if playlists:
             return playlists['subsonic-response']['playlists']['playlist']
         return []
 
-    def get_music_folders(self):
+    def get_random_songs(self):
         """
-        Gather list of Music Folders from the Subsonic server
-        :return: list
+        Gather random tracks from the Subsonic server
         """
-        music_folders = self.make_request(url=self.create_url('getMusicFolders'))
-        if music_folders:
-            return music_folders['subsonic-response']['musicFolders']['musicFolder']
-        return []
+        url = self.create_url('getRandomSongs')
+        random_songs = self.make_request(url)
+
+        if not random_songs:
+            return
+
+        return random_songs['subsonic-response']['randomSongs']['song']
 
     def get_album_tracks(self, album_id):
         """
         return a list of album track ids for the given album id
-        :param album_id: id of the album
-        :return: list
         """
         album_info = self.make_request('{}&id={}'.format(self.create_url('getAlbum'), album_id))
         songs = []
@@ -156,6 +169,37 @@ class Subsonic(MycroftSkill):
             songs.append(song)
 
         return songs
+
+    def play_songs(self, songs):
+        """
+        play a new set of tracks.
+        """
+        # we use the song_ids to scrobble tracks as they are played
+        # this method resets the playlist so we reset the list of sing ids too
+        self.song_ids = {}
+
+        for song in songs:
+            self.song_ids[song['title']] = song['id']
+
+        shuffle(songs)
+        playlist = ['{}&id={}'.format(self.create_url('download'), song['id']) for song in songs]
+        # this method resets the playlist so playlist length always starts off as long as this one
+        self.play_list_count = len(playlist)
+        self.audio_service.play(playlist, 'vlc')
+
+    def queue_songs(self, songs):
+        """
+        add the songs to the currently playing queue
+        (basically the same as play_songs above but we add to the song id map and play_list_count)
+        """
+        for song in songs:
+            self.song_ids[song['title']] = song['id']
+
+        shuffle(songs)
+        playlist = ['{}&id={}'.format(self.create_url('download'), song['id']) for song in songs]
+        # this method adds to the playlist so playlist length gets bigger as songs are added
+        self.play_list_count += len(playlist)
+        self.audio_service.queue(playlist)
 
     @intent_handler(
         IntentBuilder(
@@ -205,15 +249,7 @@ class Subsonic(MycroftSkill):
         for album in artist_info['subsonic-response']['artist']['album']:
             songs += self.get_album_tracks(album.get('id'))
 
-        shuffle(songs)
-
-        self.audio_service.play(
-            [
-                '{}&id={}'.format(self.create_url('download'), song['id'])
-                for song in songs
-            ],
-            'vlc'
-        )
+        self.play_songs(songs)
 
     @intent_handler(
         IntentBuilder(
@@ -297,18 +333,130 @@ class Subsonic(MycroftSkill):
         )
 
         if chosen_target['type'] == 'song':
-            songs = [chosen_target]
+            songs = [next(t for t in matching_targets if t['id'] == chosen_target['id'])]
         else:
             songs = self.get_album_tracks(chosen_target['id'])
-            shuffle(songs)
 
-        self.audio_service.play(
-            [
-                '{}&id={}'.format(self.create_url('download'), song['id'])
-                for song in songs
-            ],
-            'vlc'
+        self.play_songs(songs)
+
+    @intent_handler(
+        IntentBuilder(
+            'RandomIntent'
+        ).require(
+            'Play'
+        ).optionally(
+            'Music'
+        ).require(
+            'Random'
+        ).optionally(
+            'Music'
         )
+    )
+    def handle_random_intent(self, message):
+        """
+        play random tunes until told to stop
+        """
+        has_played = message.data.get('has_played')
+
+        if not has_played:
+            self.speak_dialog('random')
+            message.data['has_played'] = True
+            self.play_songs(self.get_random_songs())
+
+        else:
+            # we have been here before so just add random tracks to the queue
+            self.queue_songs(self.get_random_songs())
+
+        while self.play_list_count > 1:
+            time.sleep(5)
+            continue
+
+        self.handle_random_intent(message)
+
+    @intent_handler(
+        IntentBuilder(
+            'RadioIntent'
+        ).require(
+            'Play'
+        ).optionally(
+            'Music'
+        ).require(
+            'Radio'
+        ).require(
+            'Artist'
+        )
+    )
+    def handle_radio_intent(self, message):
+        has_played = message.data.get('has_played')
+
+        artist = message.data.get('Artist')
+        available_artists = self.search(artist).get('artist', [])
+
+        if not available_artists:
+            self.speak_dialog('no.artists', {'artist': artist})
+            return
+
+        # we want to match the best search result
+        # make a dict holding the details we need
+        matching_artists = dict()
+
+        for available_artist in available_artists:
+            matching_artists[available_artist['name']] = available_artist['id']
+
+        matched_artist_id = match_one(artist, matching_artists)[0]
+
+        similar_songs = self.make_request(
+            '{}&id={}'.format(self.create_url('getSimilarSongs2'), matched_artist_id)
+        )
+
+        if not has_played:
+            self.speak_dialog(
+                'radio',
+                {'artist': next(a for a in matching_artists if matching_artists[a] == matched_artist_id)}
+            )
+            message.data['has_played'] = True
+            self.play_songs(similar_songs['subsonic-response']['similarSongs2']['song'])
+        else:
+            self.queue_songs(similar_songs['subsonic-response']['similarSongs2']['song'])
+
+        while self.play_list_count > 1:
+            time.sleep(5)
+            continue
+
+        self.handle_radio_intent(message)
+
+    @intent_handler(
+        IntentBuilder(
+            'PlaylistIntent'
+        ).require(
+            'Play'
+        ).require(
+            'Playlist'
+        ).require(
+            'PlaylistKeyWord'
+        )
+    )
+    def handle_playlist_intent(self, message):
+        playlist = message.data.get('Playlist')
+        available_playlists = self.get_playlists()
+        matchable_playlists = dict()
+
+        for available_playlist in available_playlists:
+            matchable_playlists[available_playlist['name']] = available_playlist['id']
+
+        chosen_playlist_id = match_one(playlist, matchable_playlists)[0]
+
+        self.speak_dialog(
+            'playlist',
+            {'playlist': next(p['name'] for p in available_playlists if p['id'] == chosen_playlist_id)}
+        )
+
+        playlist_info = self.make_request(
+            url='{}&id={}'.format(self.create_url('getPlaylist'), chosen_playlist_id)
+        )
+        songs = playlist_info['subsonic-response']['playlist']['entry']
+
+        self.play_songs(songs)
 
 
 def create_skill():

@@ -1,0 +1,3 @@
+playing a radio for {{ artist }}.
+playing similar songs for {{ artist }}.
+these tunes will sound a bit like {{ artist }}.

@@ -1,5 +1,4 @@
-I was unable to find any albums matching {{ target }}.
-sorry, I couldn't find any tunes by {{ artist }}.
-it doesn't look like there is any music by {{ artist }}.
-sorry, {{ artist }} has left the building!
-nope!
+I was unable to find anything matching {{ target }}.
+sorry, I couldn't find {{ target }} by {{ artist }}.
+it doesn't look like there is anything called {{ target }} by {{ artist }}.
+No, there is no {{ target }} by {{ artist }}.
