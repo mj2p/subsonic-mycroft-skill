@@ -180,7 +180,8 @@ class Subsonic(MycroftSkill):
             [
                 '{}&id={}'.format(self.create_url('download'), song['id'])
                 for song in songs
-            ]
+            ],
+            'vlc'
         )
 
 
